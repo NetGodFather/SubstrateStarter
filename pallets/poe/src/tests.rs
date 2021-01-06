@@ -3,7 +3,7 @@ use crate::{Error, mock::*};
 use super::*;
 use frame_support::{assert_noop, assert_ok};
 
-// test case for create_claim
+// 测试存证成功添加的情况
 #[test]
 fn create_claim_works(){
 	new_test_ext().execute_with(|| {
@@ -13,6 +13,7 @@ fn create_claim_works(){
 	})
 }
 
+// 测试存证已经存在添加失败的情况
 #[test]
 fn create_claim_failed_when_claim_already_exist(){
 	new_test_ext().execute_with(|| {
@@ -26,6 +27,7 @@ fn create_claim_failed_when_claim_already_exist(){
 	})
 }
 
+// 测试存证因为太长添加失败的情况，Mock 里边将长度设置为了 6
 #[test]
 fn create_claim_failed_when_claim_is_too_long(){
 	new_test_ext().execute_with(|| {
@@ -39,6 +41,7 @@ fn create_claim_failed_when_claim_is_too_long(){
 	})
 }
 
+// 测试正常移除存证的情况
 #[test]
 fn revoke_claim_works(){
 	new_test_ext().execute_with(|| {
@@ -49,7 +52,7 @@ fn revoke_claim_works(){
 	})
 }
 
-
+// 测试移除的存证不存在的情况
 #[test]
 fn revoke_claim_failed_when_claim_is_not_exist(){
 	new_test_ext().execute_with(|| {
@@ -61,6 +64,7 @@ fn revoke_claim_failed_when_claim_is_not_exist(){
 		);
 	})
 }
+// 测试移除的存证不属于调用者的情况
 #[test]
 fn revoke_claim_failed_with_wrong_owner(){
 	new_test_ext().execute_with(|| {
@@ -74,6 +78,7 @@ fn revoke_claim_failed_with_wrong_owner(){
 	})
 }
 
+// 测试存证正常转移的情况
 #[test]
 fn transfer_claim_works(){
 	new_test_ext().execute_with(||{
@@ -87,7 +92,7 @@ fn transfer_claim_works(){
 	})
 }
 
-
+// 测试存证转移因为不存在失败的情况
 #[test]
 fn transfer_claim_failed_when_not_exists(){
 	new_test_ext().execute_with(||{
@@ -98,7 +103,7 @@ fn transfer_claim_failed_when_not_exists(){
 		);
 	})
 }
-
+// 测试存证转移因为调用者不是拥有者，失败的情况
 #[test]
 fn transfer_claim_failed_when_not_owner(){
 	new_test_ext().execute_with(||{
