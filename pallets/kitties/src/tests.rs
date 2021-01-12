@@ -1,6 +1,6 @@
-use crate::{Error, mock::*};
+use crate::{Event, Error, mock::*};
 use frame_support::{assert_noop, assert_ok, traits::{OnFinalize, OnInitialize}};
-
+use frame_system::{EventRecord, Phase};
 
 fn run_to_block( n: u64) {
 	while System::block_number() < n {
@@ -18,6 +18,15 @@ fn create_kitty_works(){
 	new_test_ext().execute_with(|| {
 		run_to_block(10);
 		assert_ok!(KittiesModule::create( Origin::signed(1)) );
+
+		assert_eq!(
+			System::events(),
+			vec![EventRecord {
+				phase: Phase::Initialization,
+				event: TestEvent::kitties_event( Event::Created( 1 as u64 , 0) ),
+				topics: vec![],
+			}]
+		);
 	})
 }
 

@@ -1,10 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Encode, Decode};
-use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter};
+use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter,
+	traits::{Currency, ReservableCurrency}
+};
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::{DispatchError,traits::{AtLeast32Bit,Bounded}};
+
 
 #[cfg(test)]
 mod mock;
@@ -15,6 +18,8 @@ mod tests;
 // 定义一个 kitty 的数据结构
 #[derive(Encode, Decode)]
 pub struct Kitty(pub [u8; 16]);
+
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 // 定义 Trait，
 pub trait Trait: frame_system::Trait {
@@ -29,6 +34,8 @@ pub trait Trait: frame_system::Trait {
 	// Default 表示有默认值
 	// Copy 表示可以实现 Copy 方法
 	type KittyIndex: Parameter + AtLeast32Bit + Bounded + Default + Copy;
+
+	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 }
 
 // 定义数据存储
@@ -45,7 +52,12 @@ decl_storage! {
 		pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
 		// 记录某个拥有者与猫之间的关系
 		pub OwnedKitties get(fn owned_kitties):map hasher(blake2_128_concat) (T::AccountId, T::KittyIndex) => Option<T::KittyIndex>;
-
+		// 记录某只猫的父母
+		pub KittyParents get(fn kitty_parents):map hasher(blake2_128_concat) T::KittyIndex => (T::KittyIndex, T::KittyIndex);
+		// 记录某只猫的孩子们，第一个值是主猫，第二个是孩子，值也是孩子
+		pub KittyChildren get(fn kitty_children):map hasher(blake2_128_concat) (T::KittyIndex, T::KittyIndex) => Option<T::KittyIndex>;
+		// 记录某只猫的伴侣，第一个是主猫，第二个是伴侣猫，值是伴侣猫
+		pub KittyPartners get(fn kitty_partners):map hasher(blake2_128_concat) (T::KittyIndex, T::KittyIndex) => Option<T::KittyIndex>;
 	}
 }
 
@@ -66,6 +78,7 @@ decl_error! {
 		NotKittyOwner,
 		TransferToSelf,
 		RequiredDiffrentParent,
+		MoneyNotEnough,
 	}
 }
 
@@ -84,8 +97,10 @@ decl_module! {
 			let kitty_id = Self::next_kitty_id()?;
 			let dna = Self::random_value(&sender);
 			let kitty = Kitty(dna);
+
+
 			Self::insert_kitty(&sender, kitty_id, kitty);
-			Self::deposit_event(RawEvent::Created(sender,kitty_id));
+			Self::deposit_event(RawEvent::Created(sender, kitty_id));
 		}
 		#[weight = 0]
 		pub fn transfer(origin, to: T::AccountId, kitty_id: T::KittyIndex){
@@ -98,6 +113,10 @@ decl_module! {
 			// 不能转让给自己
 			ensure!(to != sender, Error::<T>::TransferToSelf);
 
+			// ---报错
+			// let b: BalanceOf<T> =  5000;
+			// T::Currency::reserve(&sender, b)?;
+			
 			// 修改 KITTY 的拥有人
 			KittyOwners::<T>::insert(kitty_id, &to);
 			// 从之前的拥有人中删除关系

@@ -266,12 +266,10 @@ impl pallet_sudo::Trait for Runtime {
 	type Call = Call;
 }
 
-/// Configure the template pallet in pallets/template.
 impl pallet_template::Trait for Runtime {
 	type Event = Event;
 }
 
-/// Configure the poe pallet in pallets/poe
 parameter_types! {
 	pub const MaxClaimLength: u32 = 256;
 }
@@ -280,9 +278,9 @@ impl pallet_poe::Trait for Runtime {
 	type MaxClaimLength = MaxClaimLength;
 }
 
-/// Configure the kitties pallet in pallets/kitties
 impl pallet_kitties::Trait for Runtime {
 	type Event = Event;
+	type Randomness = RandomnessCollectiveFlip;
 	type KittyIndex = u32;
 }
 
@@ -304,7 +302,7 @@ construct_runtime!(
 		// Include the custom logic from the template pallet in the runtime.
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
 		PoeModule: pallet_poe::{Module, Call, Storage, Event<T>},
-		kittiesModule: pallet-kitties::{Module, Call, Storage, Event<T>},
+		KittiesModule: pallet_kitties::{Module, Call, Storage, Event<T>},
 	}
 );
 
