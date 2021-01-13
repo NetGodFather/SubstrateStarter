@@ -43,7 +43,13 @@ fn transfer_kitty_works(){
 		let _ = KittiesModule::create( Origin::signed(1) );
 
 		assert_ok!(KittiesModule::transfer( Origin::signed(1), 2, 0 ) );
-	})
+
+		// 因为有创建时候的（质押+创建），转让时候的（质押+解质押+转让），所以总共会触发个五个事件，这里只监控第五个
+		assert_eq!(
+			System::events()[4].event,
+			TestEvent::kitties( Event::<Test>::Transferred( 1u64 ,2u64, 0) )
+		);
+	});
 }
 
 // 测试转让 Kitty 失败，因为 kitty 不存在
@@ -84,7 +90,14 @@ fn breed_kitty_work(){
 		let _ = KittiesModule::create( Origin::signed(1) );
 
 		assert_ok!( KittiesModule::breed( Origin::signed(1), 0, 1 ) );
-	})
+
+
+		// 因为有质押，所以会触发两个事件，这里只监控第二个
+		assert_eq!(
+			System::events()[1].event,
+			TestEvent::kitties( Event::<Test>::Created( 1u64 , 0) )
+		);
+	});
 }
 
 // 测试繁殖失败，因为猫相同

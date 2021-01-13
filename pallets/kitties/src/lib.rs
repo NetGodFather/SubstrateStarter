@@ -121,7 +121,7 @@ decl_module! {
 
 			// 解质押转出人的代币
 			// 如果配置的质押代币数量变化了，可能这里会出问题。其实最好的方式是每个 kitty 都记录下，它当时质押的代币数量
-			T::Currency::unreserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::UnReserveMoneyNotEnough )?;
+			T::Currency::unreserve(&sender, T::NewKittyReserve::get());
 
 			// 修改 KITTY 的拥有人
 			KittyOwners::<T>::insert(kitty_id, &to);
