@@ -67,6 +67,7 @@ mod kitties {
 	pub use crate::Event;
 }
 
+// 导入外部的事件定义
 impl_outer_event! {
 	pub enum TestEvent for Test {
 		system<T>,

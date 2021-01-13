@@ -51,12 +51,16 @@ decl_storage! {
 		// 保存每一只猫归那个拥有者
 		pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
 		// 记录某个拥有者与猫之间的关系
+		// 因为 hashmap 可以通过第一个 key 查找所有数据，所以可以方便实现查找某个账户下所有的 Kitty
 		pub OwnedKitties get(fn owned_kitties):map hasher(blake2_128_concat) (T::AccountId, T::KittyIndex) => Option<T::KittyIndex>;
-		// 记录某只猫的父母
-		pub KittyParents get(fn kitty_parents):map hasher(blake2_128_concat) T::KittyIndex => (T::KittyIndex, T::KittyIndex);
+		// 记录某只猫的父母，因为猫可能没有父母，所以用 Option
+		pub KittyParents get(fn kitty_parents):map hasher(blake2_128_concat) T::KittyIndex => Option<(T::KittyIndex, T::KittyIndex)>;
 		// 记录某只猫的孩子们，第一个值是主猫，第二个是孩子，值也是孩子
+		// 因为 hashmap 可以通过第一个 key 查找所有数据，所以可以实现通过主猫，找到他的所有孩子
+		// 通过 猫找到父母，然后通过父母找到父母的孩子（存在同父异母，同母异父）
 		pub KittyChildren get(fn kitty_children):map hasher(blake2_128_concat) (T::KittyIndex, T::KittyIndex) => Option<T::KittyIndex>;
 		// 记录某只猫的伴侣，第一个是主猫，第二个是伴侣猫，值是伴侣猫
+		// 还是因为 hashmap 可以通过第一个 key 查找所有数据，所以可以实现通过主猫，找到他的所有伴侣
 		pub KittyPartners get(fn kitty_partners):map hasher(blake2_128_concat) (T::KittyIndex, T::KittyIndex) => Option<T::KittyIndex>;
 	}
 }
@@ -101,7 +105,7 @@ decl_module! {
 			// 质押指定数量的资产，如果资产质押失败，会报错【质押会触发时间，做测试的时候需要注意】
 			T::Currency::reserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
 
-			Self::insert_kitty(&sender, kitty_id, kitty);
+			Self::insert_kitty(&sender, kitty_id, kitty, None);
 			Self::deposit_event(RawEvent::Created(sender, kitty_id));
 		}
 		#[weight = 0]
@@ -115,16 +119,12 @@ decl_module! {
 			// 不能转让给自己
 			ensure!(to != sender, Error::<T>::TransferToSelf);
 
-			// ---报错
-			// let b: BalanceOf<T> =  5000;
-			// T::Currency::reserve(&sender, b)?;
-			
 			// 修改 KITTY 的拥有人
 			KittyOwners::<T>::insert(kitty_id, &to);
 			// 从之前的拥有人中删除关系
 			OwnedKitties::<T>::remove((&sender, kitty_id));
 			OwnedKitties::<T>::insert((&to, kitty_id), kitty_id);
-			
+
 			// 触发转让的事件
 			Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}
@@ -156,12 +156,30 @@ impl<T: Trait> Module<T> {
 		);
 		payload.using_encoded(blake2_128)
 	}
-	// 插入一个 kitty 
-	fn insert_kitty(owner : &T::AccountId, kitty_id : T::KittyIndex, kitty : Kitty){
+	// 插入一个 kitty ，因为父母可能不存在，所以parent 需要用 Option
+	fn insert_kitty(owner : &T::AccountId, kitty_id : T::KittyIndex, kitty : Kitty, parent: Option<(T::KittyIndex, T::KittyIndex)> ){
+		// 保存 Kitty 
 		<Kitties::<T>>::insert(kitty_id, kitty);
+		// 更新 Kitty 数量，当前 ID+1
 		<KittiesCount::<T>>::put(kitty_id+1.into());
+		// 保存 Kitty 的所有关系
 		<KittyOwners::<T>>::insert(kitty_id, owner);
+		// 保存拥有者拥有的 Kitty 数据
 		<OwnedKitties::<T>>::insert((owner, kitty_id), kitty_id);
+		// 保存 Kitty 的父母相关的数据，因为无父母的情况，就不管了
+		match parent {
+			Some((parent_id1, parent_id2)) =>{
+				// 保存 kitty 的父母
+				 <KittyParents::<T>>::insert(kitty_id, (parent_id1, parent_id2) );
+				// 保存父母的孩子
+				 <KittyChildren::<T>>::insert((parent_id1, kitty_id), kitty_id);
+				 <KittyChildren::<T>>::insert((parent_id2, kitty_id), kitty_id);
+				 // 保存父母的伴侣关系
+				 <KittyPartners::<T>>::insert((parent_id1, parent_id2), parent_id2);
+				 <KittyPartners::<T>>::insert((parent_id2, parent_id1), parent_id1);
+			}
+			_ => (),
+		}
 	}
 
 	fn do_breed(owner : &T::AccountId, kitty_id1: T::KittyIndex, kitty_id2: T::KittyIndex) -> sp_std::result::Result<T::KittyIndex, DispatchError>{
@@ -194,7 +212,7 @@ impl<T: Trait> Module<T> {
 
 		T::Currency::reserve(&owner, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
 
-		Self::insert_kitty(owner, kitty_id, kitty);
+		Self::insert_kitty(owner, kitty_id, kitty, Some((kitty_id1, kitty_id2)));
 
 		Ok(kitty_id)
 	}
