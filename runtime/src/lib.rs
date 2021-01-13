@@ -281,6 +281,7 @@ impl pallet_poe::Trait for Runtime {
 impl pallet_kitties::Trait for Runtime {
 	type Event = Event;
 	type Randomness = RandomnessCollectiveFlip;
+	type NewKittyReserve = 500000;
 	type KittyIndex = u32;
 }
 

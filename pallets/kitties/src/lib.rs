@@ -1,13 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Encode, Decode};
-use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter,
-	traits::{Currency, ReservableCurrency}
+use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter,traits::{Get, Currency, ReservableCurrency}
 };
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::{DispatchError,traits::{AtLeast32Bit,Bounded}};
-
 
 #[cfg(test)]
 mod mock;
@@ -34,7 +32,9 @@ pub trait Trait: frame_system::Trait {
 	// Default 表示有默认值
 	// Copy 表示可以实现 Copy 方法
 	type KittyIndex: Parameter + AtLeast32Bit + Bounded + Default + Copy;
-
+	// 创建 Kitty 的时候，需要质押的代币
+	type NewKittyReserve: Get<BalanceOf<Self>>;
+	// Currency 类型，用于质押等于资产相关的操作
 	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 }
 
@@ -98,6 +98,8 @@ decl_module! {
 			let dna = Self::random_value(&sender);
 			let kitty = Kitty(dna);
 
+			// 质押指定数量的资产，如果资产质押失败，会报错【质押会触发时间，做测试的时候需要注意】
+			T::Currency::reserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
 
 			Self::insert_kitty(&sender, kitty_id, kitty);
 			Self::deposit_event(RawEvent::Created(sender, kitty_id));
@@ -189,6 +191,8 @@ impl<T: Trait> Module<T> {
 		}
 
 		let kitty = Kitty(new_dna);
+
+		T::Currency::reserve(&owner, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
 
 		Self::insert_kitty(owner, kitty_id, kitty);
 

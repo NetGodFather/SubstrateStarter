@@ -1,6 +1,5 @@
 use crate::{Event, Error, mock::*};
 use frame_support::{assert_noop, assert_ok, traits::{OnFinalize, OnInitialize}};
-use frame_system::{EventRecord, Phase};
 
 fn run_to_block( n: u64) {
 	while System::block_number() < n {
@@ -19,14 +18,20 @@ fn create_kitty_works(){
 		run_to_block(10);
 		assert_ok!(KittiesModule::create( Origin::signed(1)) );
 
+		// 因为有质押，所以会触发两个事件，这里只监控第二个
 		assert_eq!(
-			System::events(),
-			vec![EventRecord {
-				phase: Phase::Initialization,
-				event: TestEvent::kitties_event( Event::<Test>::Created( 1u64 , 0) ),
-				topics: vec![],
-			}]
+			System::events()[1].event,
+			TestEvent::kitties( Event::<Test>::Created( 1u64 , 0) )
 		);
+	})
+}
+
+// 测试创建 Kitty 失败，因为没有质押的钱
+#[test]
+fn create_kitty_failed_when_not_enough_money(){
+	new_test_ext().execute_with(|| {
+		run_to_block(10);
+		assert_noop!(KittiesModule::create( Origin::signed(9)) , Error::<Test>::MoneyNotEnough);
 	})
 }
 
