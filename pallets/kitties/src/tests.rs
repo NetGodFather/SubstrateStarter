@@ -23,7 +23,7 @@ fn create_kitty_works(){
 			System::events(),
 			vec![EventRecord {
 				phase: Phase::Initialization,
-				event: TestEvent::kitties_event( Event::Created( 1 as u64 , 0) ),
+				event: TestEvent::kitties_event( Event::<Test>::Created( 1u64 , 0) ),
 				topics: vec![],
 			}]
 		);
