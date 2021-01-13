@@ -79,6 +79,7 @@ decl_error! {
 		TransferToSelf,
 		RequiredDiffrentParent,
 		MoneyNotEnough,
+		UnReserveMoneyNotEnough,
 	}
 }
 
@@ -114,6 +115,13 @@ decl_module! {
 
 			// 不能转让给自己
 			ensure!(to != sender, Error::<T>::TransferToSelf);
+
+			// 质押被转让人的代币
+			T::Currency::reserve(&to, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
+
+			// 解质押转出人的代币
+			// 如果配置的质押代币数量变化了，可能这里会出问题。其实最好的方式是每个 kitty 都记录下，它当时质押的代币数量
+			T::Currency::unreserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::UnReserveMoneyNotEnough )?;
 
 			// 修改 KITTY 的拥有人
 			KittyOwners::<T>::insert(kitty_id, &to);
