@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Encode, Decode};
-use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter,traits::{Get, Currency, ReservableCurrency}
+use frame_support::{decl_module,decl_storage, decl_event, decl_error, StorageValue, ensure, StorageMap, traits::Randomness, Parameter,traits::{ExistenceRequirement ,Get, Currency, ReservableCurrency}
 };
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
@@ -49,7 +49,7 @@ decl_storage! {
 		// T::AccountId 就是指第 17 行定义的 trait 的 AccountId 类型，而这边定义的 AccountId 是继承自 frame_system::Trait 里边的 AccountId
 		pub KittiesCount get(fn kitties_count): T::KittyIndex;
 		// 保存每一只猫归那个拥有者
-		pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
+		pub KittyOwners get(fn kitty_owners): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
 		// 记录某个拥有者与猫之间的关系
 		pub OwnedKitties get(fn owned_kitties):double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::KittyIndex => Option<T::KittyIndex>;
 		// 记录某只猫的父母，因为猫可能没有父母，所以用 Option
@@ -58,15 +58,18 @@ decl_storage! {
 		pub KittyChildren get(fn kitty_children):double_map hasher(blake2_128_concat) T::KittyIndex, hasher(blake2_128_concat) T::KittyIndex => Option<T::KittyIndex>;
 		// 记录某只猫的伴侣，第一个是主猫，第二个是伴侣猫，值是伴侣猫
 		pub KittyPartners get(fn kitty_partners):double_map hasher(blake2_128_concat) T::KittyIndex, hasher(blake2_128_concat) T::KittyIndex => Option<T::KittyIndex>;
+
+		pub KittyPrices get(fn kitty_prices): map hasher(blake2_128_concat) T::KittyIndex => Option<BalanceOf<T>>;
 	}
 }
 
 // 定义事件
 decl_event!(
 	// where 后边的部分，是表示在 Event 里边需要用的一些类型来自哪个 Trait 定义
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, KittyIndex = <T as Trait>::KittyIndex {
+	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, KittyIndex = <T as Trait>::KittyIndex, BalanceOf = BalanceOf<T> {
 		Created(AccountId, KittyIndex),
 		Transferred(AccountId, AccountId, KittyIndex),
+		KittyAsk(AccountId, KittyIndex, Option<BalanceOf>),
 	}
 );
 
@@ -80,6 +83,9 @@ decl_error! {
 		RequiredDiffrentParent,
 		MoneyNotEnough,
 		UnReserveMoneyNotEnough,
+		AlreadyOwned,
+		NotForSale,
+		PriceTooLow,
 	}
 }
 
@@ -109,7 +115,7 @@ decl_module! {
 		pub fn transfer(origin, to: T::AccountId, kitty_id: T::KittyIndex){
 			let sender = ensure_signed(origin)?;
 			// 判断 KittyIndex 是否存在，通过 ok_or 将错误抛出来，如果没有将返回一个 option 类型的数据
-			let owner = Self::kitty_owner(kitty_id).ok_or( Error::<T>::KittyNotExists )?;
+			let owner = Self::kitty_owners(kitty_id).ok_or( Error::<T>::KittyNotExists )?;
 			// 判断 KittyIndex 是否属于发送者
 			ensure!(owner == sender, Error::<T>::NotKittyOwner);
 
@@ -139,7 +145,47 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::Created(sender, new_kitty_id));
 		}
+		#[weight = 0]
+		pub fn ask(origin, kitty_id: T::KittyIndex, new_price: Option<BalanceOf<T>>){
+			let sender = ensure_signed(origin)?;
+			// 判定是不是 kitty 的主人
+			ensure!( Some( sender.clone() ) == Self::kitty_owners(kitty_id), Error::<T>::NotKittyOwner);
+			
+			// mutate_exists ：修改 map 指定键的值，如果为 none 就删除，第二个参数是一个闭包，提供的参数是键值 
+			<KittyPrices<T>>::mutate_exists(kitty_id, |price| *price = new_price);
 
+			// 触发一个挂单的事件
+			Self::deposit_event(RawEvent::KittyAsk(sender, kitty_id, new_price));
+		}
+		#[weight = 0]
+		pub fn buy(origin, kitty_id: T::KittyIndex, price: BalanceOf<T>){
+			let sender = ensure_signed(origin)?;
+			// 检查是否存在，顺便提取出售者
+			let owner = Self::kitty_owners(kitty_id).ok_or( Error::<T>::KittyNotExists )?;
+			// 已经是自己的不再折腾
+			ensure!( sender.clone() != owner, Error::<T>::AlreadyOwned);
+			let kitty_price = Self::kitty_prices(kitty_id).ok_or( Error::<T>::NotForSale)?;
+			// 确认出价是不是太低
+			ensure!( kitty_price <= price, Error::<T>::PriceTooLow);
+
+			// 转质押 + 扣款
+			// 对于购买者，先质押购买的和创建抵押的
+			T::Currency::reserve(&sender, T::NewKittyReserve::get() + kitty_price ).map_err(|_| Error::<T>::MoneyNotEnough )?;
+			// 释放卖出者之前质押的
+			T::Currency::unreserve(&owner, T::NewKittyReserve::get());
+			// 释放购买者需要支付用来质押的
+			T::Currency::unreserve(&sender, kitty_price);
+			// 转账
+			T::Currency::transfer(&sender, &owner, kitty_price, ExistenceRequirement::KeepAlive)?;
+
+			// 移除价格挂单
+			<KittyPrices::<T>>::remove(&kitty_id);
+			// 转移 Kitty
+			<KittyOwners::<T>>::insert(&kitty_id, sender.clone() );
+
+			// 触发所有权转让的事件
+			Self::deposit_event(RawEvent::Transferred(owner, sender, kitty_id));
+		}
 	}
 }
 
@@ -191,8 +237,8 @@ impl<T: Trait> Module<T> {
 		ensure!( kitty_id1 != kitty_id2, Error::<T>::RequiredDiffrentParent);
 
 		// 判断 KittyIndex 是否存在，通过 ok_or 将错误抛出来，如果没有将返回一个 option 类型的数据
-		let owner1 = Self::kitty_owner(kitty_id1).ok_or( Error::<T>::KittyNotExists )?;
-		let owner2 = Self::kitty_owner(kitty_id2).ok_or( Error::<T>::KittyNotExists )?;
+		let owner1 = Self::kitty_owners(kitty_id1).ok_or( Error::<T>::KittyNotExists )?;
+		let owner2 = Self::kitty_owners(kitty_id2).ok_or( Error::<T>::KittyNotExists )?;
 		// 判断 KittyIndex 是否属于发送者
 		ensure!(owner1 == *owner, Error::<T>::NotKittyOwner);
 		ensure!(owner2 == *owner, Error::<T>::NotKittyOwner);

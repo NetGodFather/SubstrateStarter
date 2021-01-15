@@ -90,8 +90,7 @@ fn breed_kitty_work(){
 		let _ = KittiesModule::create( Origin::signed(1) );
 
 		assert_ok!( KittiesModule::breed( Origin::signed(1), 0, 1 ) );
-
-
+		
 		// 因为有质押，所以会触发两个事件，这里只监控第二个
 		assert_eq!(
 			System::events()[1].event,
@@ -129,4 +128,23 @@ fn breed_kitty_fail_when_(){
 
 		assert_noop!( KittiesModule::breed( Origin::signed(2), 0, 1) , Error::<Test>::NotKittyOwner);
 	})
+}
+// 挂单价格成功
+#[test]
+fn ask_price_work(){
+	new_test_ext().execute_with(|| {
+		run_to_block(10);
+		let _ = KittiesModule::create( Origin::signed(1) );
+		assert_ok!( KittiesModule::ask( Origin::signed(1), 0, Some(5_000_000_000) ) );
+	});
+}
+
+// 挂单价格失败，因为不是同一个用户
+#[test]
+fn ask_price_fail_when_not_owner(){
+	new_test_ext().execute_with(|| {
+		run_to_block(10);
+		let _ = KittiesModule::create( Origin::signed(1) );
+		assert_noop!( KittiesModule::ask( Origin::signed(2), 0, Some(5_000_000_000) ) , Error::<Test>::NotKittyOwner);
+	});
 }
