@@ -6,15 +6,17 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+
 use sp_std::prelude::*;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{Encode, crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
+	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature, SaturatedConversion,
 	transaction_validity::{TransactionValidity, TransactionSource},
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Verify, IdentifyAccount, NumberFor, Saturating,
+	self, BlakeTwo256, Block as BlockT, Verify, IdentifyAccount, NumberFor, Saturating,
 };
+
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -30,7 +32,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
-	construct_runtime, parameter_types, StorageValue,
+	construct_runtime, parameter_types, StorageValue, debug, 
 	traits::{KeyOwnerProofSystem, Randomness},
 	weights::{
 		Weight, IdentityFee,
@@ -292,8 +294,62 @@ impl pallet_kitties::Trait for Runtime {
 }
 
 impl pallet_dotprices::Trait for Runtime {
+	type AuthorityId = pallet_dotprices::crypto::AuthId;
+	type Call = Call;
 	type Event = Event;
 }
+
+// ----- OCW 实现在本地签名发起交易 Start----- //
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+  Call: From<LocalCall>,
+{
+  fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+    call: Call,
+    public: <Signature as traits::Verify>::Signer,
+    account: AccountId,
+    index: Index,
+  ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+    let period = BlockHashCount::get() as u64;
+    let current_block = System::block_number()
+      .saturated_into::<u64>()
+      .saturating_sub(1);
+    let tip = 0;
+    let extra: SignedExtra = (
+      frame_system::CheckSpecVersion::<Runtime>::new(),
+      frame_system::CheckTxVersion::<Runtime>::new(),
+      frame_system::CheckGenesis::<Runtime>::new(),
+      frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
+      frame_system::CheckNonce::<Runtime>::from(index),
+      frame_system::CheckWeight::<Runtime>::new(),
+      pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+    );
+
+    let raw_payload = SignedPayload::new(call, extra)
+      .map_err(|e| {
+        debug::warn!("SignedPayload error: {:?}", e);
+      })
+      .ok()?;
+    let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+    let address = account;
+    let (call, extra, _) = raw_payload.deconstruct();
+    Some((call, (multiaddress::MultiAddress::Id(address), signature.into(), extra)))
+  }
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+  type Public = <Signature as traits::Verify>::Signer;
+  type Signature = Signature;
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
+  Call: From<C>,
+{
+  type OverarchingCall = Call;
+  type Extrinsic = UncheckedExtrinsic;
+}
+// ----- OCW 实现在本地签名发起交易 End----- //
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -341,6 +397,8 @@ pub type SignedExtra = (
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+/// The payload being signed in transactions.
+pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
