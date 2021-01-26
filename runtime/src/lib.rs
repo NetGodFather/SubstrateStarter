@@ -44,6 +44,8 @@ pub use pallet_template;
 /// Import the poe pallet;
 pub use pallet_poe;
 pub use pallet_kitties;
+pub use pallet_dotprices;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -289,6 +291,10 @@ impl pallet_kitties::Trait for Runtime {
 	type Currency = Balances;
 }
 
+impl pallet_dotprices::Trait for Runtime {
+	type Event = Event;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -308,6 +314,7 @@ construct_runtime!(
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
 		PoeModule: pallet_poe::{Module, Call, Storage, Event<T>},
 		KittiesModule: pallet_kitties::{Module, Call, Storage, Event<T>},
+		DotPrices: pallet_dotprices::{Module, Call, Storage, Event<T>},
 	}
 );
 
