@@ -11,7 +11,7 @@ use frame_system::{
 use sp_runtime::{
 	offchain as rt_offchain,
 };
-use serde::{Deserialize, Serialize, Deserializer};
+use serde_json::{Value};
 
 // #[cfg(test)]
 // mod mock;
@@ -58,25 +58,6 @@ pub mod crypto {
 		type GenericSignature = sp_core::sr25519::Signature;
 		type GenericPublic = sp_core::sr25519::Public;
 	}
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Asset{
-    data: Data,
-    timestamp: u64,
-}
-#[derive(Serialize, Deserialize, Debug)]
-struct Data{
-	#[serde(deserialize_with = "de_string_to_bytes")]
-    priceUsd: Vec<u8>,
-}
-
-pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
-where
-	D: Deserializer<'de>,
-{
-	let s: &str = Deserialize::deserialize(de)?;
-	Ok(s.as_bytes().to_vec())
 }
 
 // 因为 OCW 需要发起签名的交易，所以需要实现 CreateSignedTransaction 
@@ -187,13 +168,12 @@ impl<T: Trait> Module<T> {
 		// 转换为字符串，如果转换不成功，报错
 		let resp_str = str::from_utf8(&resp_bytes).map_err(|_| <Error<T>>::HttpFetchingError)?;
 		debug::info!("resp_str {}", resp_str);
+		
+		let asset: Value = serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::HttpFetchingError)?;
+		let price : Vec<u8> = asset["data"]["priceUsd"].as_str().unwrap().as_bytes().to_vec();
 
-		let asset: Asset =
-			serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::HttpFetchingError)?;
-
-		debug::info!("price is {:?}", asset.data.priceUsd);
-
-		return Ok(asset.data.priceUsd);
+		debug::info!("price is {:?}", price);
+		return Ok(price);
 	}
 	// 从远程网页上获取数据
 	fn fetch_from_remote() -> Result<Vec<u8>, Error<T>>{
