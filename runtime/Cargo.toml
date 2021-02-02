@@ -60,6 +60,8 @@ sp-version = { default-features = false, version = '2.0.1' }
 pallet-contracts = { version = '2.0.1', default_features = false }
 pallet-contracts-primitives = { version = '2.0.1', default_features = false }
 
+pallet-contracts-rpc-runtime-api = { version = '0.8.1', default-features = false }
+
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -85,6 +87,9 @@ std = [
     'pallet-randomness-collective-flip/std',
     'pallet-sudo/std',
     'pallet-template/std',
+    'pallet-poe/std',
+    'pallet-kitties/std',
+    'pallet-dotprices/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
@@ -101,4 +106,5 @@ std = [
     'sp-version/std',
     'pallet-contracts/std',
     'pallet-contracts-primitives/std',
+    'pallet-contracts-rpc-runtime-api/std',
 ]

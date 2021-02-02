@@ -24,6 +24,7 @@ use pallet_grandpa::fg_primitives;
 use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use pallet_contracts_rpc_runtime_api::ContractExecResult;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
@@ -607,4 +608,39 @@ impl_runtime_apis! {
 			Ok(batches)
 		}
 	}
+	impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber>
+        for Runtime
+    {
+        fn call(
+            origin: AccountId,
+            dest: AccountId,
+            value: Balance,
+            gas_limit: u64,
+            input_data: Vec<u8>,
+        ) -> ContractExecResult {
+            let (exec_result, gas_consumed) =
+                Contracts::bare_call(origin, dest.into(), value, gas_limit, input_data);
+            match exec_result {
+                Ok(v) => ContractExecResult::Success {
+                    flags: v.flags.bits(),
+                    data: v.data,
+                    gas_consumed: gas_consumed,
+                },
+                Err(_) => ContractExecResult::Error,
+            }
+        }
+
+        fn get_storage(
+            address: AccountId,
+            key: [u8; 32],
+        ) -> pallet_contracts_primitives::GetStorageResult {
+            Contracts::get_storage(address, key)
+        }
+
+        fn rent_projection(
+            address: AccountId,
+        ) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
+            Contracts::rent_projection(address)
+        }
+    }
 }
