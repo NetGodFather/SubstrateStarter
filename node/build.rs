@@ -1,7 +1,9 @@
-use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
+use substrate_wasm_builder::WasmBuilder;
 
 fn main() {
-	generate_cargo_keys();
-
-	rerun_if_git_head_changed();
+    WasmBuilder::new()
+        .with_current_project()
+        .import_memory()
+        .export_heap_base()
+        .build()
 }
