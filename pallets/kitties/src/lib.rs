@@ -211,7 +211,7 @@ impl<T: Trait> Module<T> {
 		// 保存 Kitty 
 		<Kitties::<T>>::insert(kitty_id, kitty);
 		// 更新 Kitty 数量，当前 ID+1
-		<KittiesCount::<T>>::put(kitty_id+1.into());
+		<KittiesCount::<T>>::put(kitty_id+1u32.into());
 		// 保存 Kitty 的所有关系
 		<KittyOwners::<T>>::insert(kitty_id, owner);
 		// 保存拥有者拥有的 Kitty 数据
