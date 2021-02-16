@@ -99,7 +99,7 @@ decl_module! {
 		// 如果有触发事件，必须包含这一行
 		fn deposit_event() = default;
 
-		#[weight = 0]
+		#[weight = T::DbWeight::get().writes(5) + T::DbWeight::get().reads(4) + 139_300_000]
 		pub fn create(origin){
 			// 加 “?” 只提取正确时候返回的数据
 			let sender = ensure_signed(origin)?;
@@ -140,7 +140,7 @@ decl_module! {
 			// 触发转让的事件
 			Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}
-		#[weight = 0]
+		#[weight = T::DbWeight::get().writes(10) + T::DbWeight::get().reads(8) + 233_100_000]
 		pub fn breed(origin, kitty_id1: T::KittyIndex, kitty_id2: T::KittyIndex){
 			let sender = ensure_signed(origin)?;
 			let new_kitty_id = Self::do_breed(&sender, kitty_id1, kitty_id2)?;
