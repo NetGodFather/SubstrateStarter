@@ -73,6 +73,7 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'pallet-template/runtime-benchmarks',
+    'pallet-kitties/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 ]
 std = [

@@ -7,6 +7,8 @@ use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::{DispatchError,traits::{AtLeast32Bit,Bounded}};
 
+mod benchmarking;
+
 #[cfg(test)]
 mod mock;
 

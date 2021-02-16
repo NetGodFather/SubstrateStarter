@@ -19,16 +19,17 @@ package = 'parity-scale-codec'
 version = '1.3.4'
 
 [dependencies]
-frame-support = { default-features = false, version = '2.0.0' }
-frame-system = { default-features = false, version = '2.0.0' }
-sp-std = { default-features = false, version = '2.0.0' }
-sp-io = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
-balances = { package = 'pallet-balances', version = '2.0.0', default-features = false }
+frame-support = { default-features = false, version = '2.0.1' }
+frame-system = { default-features = false, version = '2.0.1' }
+sp-std = { default-features = false, version = '2.0.1' }
+sp-io = { default-features = false, version = '2.0.1' }
+sp-runtime = { default-features = false, version = '2.0.1' }
+balances = { package = 'pallet-balances', version = '2.0.1', default-features = false }
+frame-benchmarking = { version = "2.0.1", default-features = false, optional = true }
 
 [dev-dependencies]
-sp-core = { default-features = false, version = '2.0.0' }
-pallet-randomness-collective-flip = { version = '2.0.0' }
+sp-core = { default-features = false, version = '2.0.1' }
+pallet-randomness-collective-flip = { version = '2.0.1' }
 
 [features]
 default = ['std']
@@ -39,4 +40,8 @@ std = [
     "sp-io/std",
     "sp-runtime/std",
     "balances/std",
+    "frame-benchmarking/std",
+    "sp-std/std",
 ]
+
+runtime-benchmarks = ["frame-benchmarking"]
