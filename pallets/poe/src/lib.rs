@@ -16,9 +16,9 @@ mod mock;
 mod tests;
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
 	// 因为需要触发时间，所以需要有这一行
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	// 设置存证最大长度，这样设置，可以在 runtime 里边去配置具体长度
 	type MaxClaimLength: Get<u32>;
 }
@@ -29,7 +29,7 @@ decl_storage! {
 	// A unique name is used to ensure that the pallet's storage items are isolated.
 	// This name may be updated, but each pallet in the runtime must use a unique name.
 	// ---------------------------------vvvvvvvvvvvvvv
-	trait Store for Module<T: Trait> as PoeModule {
+	trait Store for Module<T: Config> as PoeModule {
 		// 存证保存的变量，十一二点 hashmap ，KEY 是存证内容的，会用 blake2_128_concat 就行 HASH ，只是一个元组
 		Proofs get(fn proofs): map hasher(blake2_128_concat) Vec<u8> => (T::AccountId, T::BlockNumber);
 	}
@@ -38,7 +38,7 @@ decl_storage! {
 // Pallets use events to inform users when important changes are made.
 // https://substrate.dev/docs/en/knowledgebase/runtime/events
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		// 触发的事件，包括：创建、删除、转让
@@ -51,7 +51,7 @@ decl_event!(
 // Errors inform users that something went wrong.
 
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		// 包含的错误信息，包括：存证已经存在、存证不存在，不是存证的主人，存证太长
 		ProofAlreadyExists,
 		ProofNotExists,
@@ -64,7 +64,7 @@ decl_error! {
 // These functions materialize as "extrinsics", which are often compared to transactions.
 // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 

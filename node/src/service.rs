@@ -3,14 +3,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_template_runtime::{self, opaque::Block, RuntimeApi};
+use node_template_runtime::{opaque::Block, RuntimeApi};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sp_inherents::InherentDataProviders;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sp_consensus_aura::sr25519::{AuthorityPair as AuraPair};
 use sc_finality_grandpa::SharedVoterState;
-use sc_keystore::LocalKeystore;
+use sc_keystore::{LocalKeystore};
+use sp_keystore::{SyncCryptoStore};
+use pallet_dotprices;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -49,6 +51,18 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 	let client = Arc::new(client);
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
+
+	// 为 pallet_dotprices 配置一个账号用于签名
+	let secret_uri = "//Alice";
+	let key_pair = pallet_dotprices::crypto::Pair::f(secret_uri, None)
+		.expect("Generates key pair");
+	let keystore = keystore_container.sync_keystore();
+	SyncCryptoStore::insert_unknown(
+		&*keystore,
+		pallet_dotprices::KEY_TYPE,
+		secret_uri,
+		key_pair.public().as_ref()
+	).expect("Insert key should succeed");
 
 	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
 		config.transaction_pool.clone(),

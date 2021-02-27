@@ -7,6 +7,8 @@ use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::{DispatchError,traits::{AtLeast32Bit,Bounded}};
 
+mod benchmarking;
+
 #[cfg(test)]
 mod mock;
 
@@ -17,12 +19,12 @@ mod tests;
 #[derive(Encode, Decode)]
 pub struct Kitty(pub [u8; 16]);
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-// 定义 Trait，
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
     // 如果有触发事件，就必须包含这一行
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
 	type Randomness: Randomness<Self::Hash>;
 
 	// 定义 KittyIndex 类型，要求实现指定的 trait 
@@ -41,12 +43,12 @@ pub trait Trait: frame_system::Trait {
 // 定义数据存储
 decl_storage! {
 	// 定义所储存的数据是属于 KittiesModule 的，( 这个需要和 runtime > lib.rss > construct_runtime 部分引用这个 pallet 的名称对应？）
-	// T: Trait 里边的 Trait 就是第17行定义的 Trait
-	trait Store for Module<T: Trait> as KittiesModule {
+	// T: Config 里边的 Config 就是第17行定义的 Config
+	trait Store for Module<T: Config> as KittiesModule {
 		// 保存所有 kitty 的数据，用 KittyIndex 作为健值
 		pub Kitties get(fn kitties): map hasher(blake2_128_concat) T::KittyIndex => Option<Kitty>;
 		// 保存 kitty 的总数，严格上来说，应该是最大的 Kitty 的健值索引，因为如果支持 kitty 的删除，实现上就不对了。
-		// T::AccountId 就是指第 17 行定义的 trait 的 AccountId 类型，而这边定义的 AccountId 是继承自 frame_system::Trait 里边的 AccountId
+		// T::AccountId 就是指第 17 行定义的 trait 的 AccountId 类型，而这边定义的 AccountId 是继承自 frame_system::Config 里边的 AccountId
 		pub KittiesCount get(fn kitties_count): T::KittyIndex;
 		// 保存每一只猫归那个拥有者
 		pub KittyOwners get(fn kitty_owners): map hasher(blake2_128_concat) T::KittyIndex => Option<T::AccountId>;
@@ -65,8 +67,8 @@ decl_storage! {
 
 // 定义事件
 decl_event!(
-	// where 后边的部分，是表示在 Event 里边需要用的一些类型来自哪个 Trait 定义
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, KittyIndex = <T as Trait>::KittyIndex, BalanceOf = BalanceOf<T> {
+	// where 后边的部分，是表示在 Event 里边需要用的一些类型来自哪个 Config 定义
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId, KittyIndex = <T as Config>::KittyIndex, BalanceOf = BalanceOf<T> {
 		Created(AccountId, KittyIndex),
 		Transferred(AccountId, AccountId, KittyIndex),
 		KittyAsk(AccountId, KittyIndex, Option<BalanceOf>),
@@ -75,7 +77,7 @@ decl_event!(
 
 // 定义错误信息
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		KittiesCountOverflow,
 		KittyNotExists,
 		NotKittyOwner,
@@ -91,7 +93,7 @@ decl_error! {
 
 // 定义可被调用的方法
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// 如果有触发错误信息，必须包含这一行
 		type Error = Error<T>;
 		// 如果有触发事件，必须包含这一行
@@ -189,7 +191,7 @@ decl_module! {
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	// 获取下一个
 	fn next_kitty_id() -> sp_std::result::Result<T::KittyIndex, DispatchError>{
 		let kitty_id = Self::kitties_count();
