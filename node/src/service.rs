@@ -54,7 +54,7 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 
 	// 为 pallet_dotprices 配置一个账号用于签名
 	let secret_uri = "//Alice";
-	let key_pair = pallet_dotprices::crypto::Pair::f(secret_uri, None)
+	let key_pair = pallet_dotprices::crypto::Pair::from_string(secret_uri, None)
 		.expect("Generates key pair");
 	let keystore = keystore_container.sync_keystore();
 	SyncCryptoStore::insert_unknown(
