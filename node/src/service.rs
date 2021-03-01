@@ -3,16 +3,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-use node_template_runtime::{opaque::Block, RuntimeApi};
+use node_template_runtime::{self, opaque::Block, RuntimeApi};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sp_inherents::InherentDataProviders;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sp_consensus_aura::sr25519::{AuthorityPair as AuraPair};
 use sc_finality_grandpa::SharedVoterState;
-use sc_keystore::{LocalKeystore};
-use sp_keystore::{SyncCryptoStore};
+use sp_keystore::{self,SyncCryptoStore};
 use pallet_dotprices;
+use sc_keystore::LocalKeystore;
+use sp_core::Pair;
 
 // Our native executor instance.
 native_executor_instance!(
