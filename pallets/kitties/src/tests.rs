@@ -1,4 +1,8 @@
-use crate::{Event, Error, mock::*};
+use super::*;
+use crate::mock::{
+	Event,System,Origin,KittiesModule,new_test_ext,Test
+};
+// use crate::{Event, Error, mock::*};
 use frame_support::{assert_noop, assert_ok, traits::{OnFinalize, OnInitialize}};
 
 fn run_to_block( n: u64) {
@@ -11,7 +15,7 @@ fn run_to_block( n: u64) {
 	}
 }
 
-// 测试创建一个 Kitty
+// // 测试创建一个 Kitty
 #[test]
 fn create_kitty_works(){
 	new_test_ext().execute_with(|| {
@@ -21,7 +25,7 @@ fn create_kitty_works(){
 		// 因为有质押，所以会触发两个事件，这里只监控第二个
 		assert_eq!(
 			System::events()[1].event,
-			TestEvent::kitties( Event::<Test>::Created( 1u64 , 0) )
+			Event::pallet_kitties(RawEvent::Created(1, 0))
 		);
 	})
 }
@@ -47,7 +51,7 @@ fn transfer_kitty_works(){
 		// 因为有创建时候的（质押+创建），转让时候的（质押+解质押+转让），所以总共会触发个五个事件，这里只监控第五个
 		assert_eq!(
 			System::events()[4].event,
-			TestEvent::kitties( Event::<Test>::Transferred( 1u64 ,2u64, 0) )
+			Event::pallet_kitties(RawEvent::Transferred( 1u64 ,2u64, 0) )
 		);
 	});
 }
@@ -94,7 +98,7 @@ fn breed_kitty_work(){
 		// 因为有质押，所以会触发两个事件，这里只监控第二个
 		assert_eq!(
 			System::events()[1].event,
-			TestEvent::kitties( Event::<Test>::Created( 1u64 , 0) )
+			Event::pallet_kitties( RawEvent::Created( 1u64 , 0) )
 		);
 	});
 }

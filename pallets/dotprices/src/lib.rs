@@ -32,13 +32,12 @@ pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"demo");
 pub mod crypto {
 	// cate 是指当前编译的单元（基本就是这个 rs 文件），cate::KEY_TYPE 就是指编译单元定义的变量，就是引入第 52 行定义的。
 	use crate::KEY_TYPE;
-	use sp_core::sr25519::Signature as Sr25519Signature;
-	use sp_runtime::app_crypto::{app_crypto, sr25519};
 	use sp_runtime::{
+		app_crypto::{app_crypto, sr25519},
 		traits::Verify,
 		MultiSignature, MultiSigner,
 	};
-	
+	use sp_core::sr25519::Signature as Sr25519Signature;
 	app_crypto!(sr25519, KEY_TYPE);
 
 	// 在 runtime/src/lib.rs 中指定 pallet 的 AuthorityId 时候需要
@@ -61,14 +60,14 @@ pub mod crypto {
 }
 
 // 因为 OCW 需要发起签名的交易，所以需要实现 CreateSignedTransaction 
-pub trait Trait: frame_system::Trait + CreateSignedTransaction<Call<Self>> {
+pub trait Trait: frame_system::Config + CreateSignedTransaction<Call<Self>> {
 	/// The identifier type for an offchain worker.
 	type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 	/// The overarching dispatch call type.
 	type Call: From<Call<Self>>;
 	/// The overarching event type.
     // 如果有触发事件，就必须包含这一行
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_storage! {
@@ -80,7 +79,7 @@ decl_storage! {
 
 decl_event!(
 	// where 后边的部分，是表示在 Event 里边需要用的一些类型来自哪个 Trait 定义
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, {
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId, {
 		PriceUpdated(AccountId, Vec<u8>),
     }
 );
