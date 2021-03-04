@@ -103,14 +103,8 @@ decl_module! {
 		pub fn create(origin){
 			// 加 “?” 只提取正确时候返回的数据
 			let sender = ensure_signed(origin)?;
-			let kitty_id = Self::next_kitty_id()?;
-			let dna = Self::random_value(&sender);
-			let kitty = Kitty(dna);
+			let kitty_id = Self::create_kitty(&sender)?;
 
-			// 质押指定数量的资产，如果资产质押失败，会报错【质押会触发时间，做测试的时候需要注意】
-			T::Currency::reserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
-
-			Self::insert_kitty(&sender, kitty_id, kitty, None);
 			Self::deposit_event(RawEvent::Created(sender, kitty_id));
 		}
 		#[weight = 0]
@@ -208,6 +202,19 @@ impl<T: Config> Module<T> {
 		);
 		payload.using_encoded(blake2_128)
 	}
+	pub fn create_kitty(sender : &T::AccountId) -> sp_std::result::Result<T::KittyIndex, DispatchError>{
+		let kitty_id = Self::next_kitty_id()?;
+		let dna = Self::random_value(&sender);
+		let kitty = Kitty(dna);
+
+		// 质押指定数量的资产，如果资产质押失败，会报错【质押会触发时间，做测试的时候需要注意】
+		T::Currency::reserve(&sender, T::NewKittyReserve::get()).map_err(|_| Error::<T>::MoneyNotEnough )?;
+
+		Self::insert_kitty(&sender, kitty_id, kitty, None);
+
+		Ok(kitty_id)
+	}
+
 	// 插入一个 kitty ，因为父母可能不存在，所以parent 需要用 Option
 	fn insert_kitty(owner : &T::AccountId, kitty_id : T::KittyIndex, kitty : Kitty, parent: Option<(T::KittyIndex, T::KittyIndex)> ){
 		// 保存 Kitty 

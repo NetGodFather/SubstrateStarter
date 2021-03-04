@@ -4,7 +4,7 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// https://substrate.dev/docs/en/knowledgebase/runtime/frame
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, ensure,};
 use frame_system::{self as system, ensure_signed};
 use sp_std::prelude::*;
 use frame_support::traits::Get;
@@ -76,15 +76,9 @@ decl_module! {
 		pub fn create_claim(origin, claim: Vec<u8>) -> dispatch::DispatchResult {
 			// 验签+获得调用者
 			let sender = ensure_signed(origin)?;
-			// 检测存证是否已经存在
-			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExists);
-			// 检测存证的长度是否超过限制
-			ensure!( T::MaxClaimLength::get() >= claim.len() as u32, Error::<T>::ProofTooLong);
-			// 存入存证数据
-			Proofs::<T>::insert(&claim,(sender.clone(), system::Module::<T>::block_number()));
-			// 触发存证写入成功的时间
-			Self::deposit_event(RawEvent::ClaimCreated(sender, claim));
-			Ok(())
+			Self::do_create_claim(sender, claim)?;
+
+			Ok(().into())
 		}
 		// 存证删除
 		#[weight = 10_000]
@@ -120,5 +114,19 @@ decl_module! {
 			Self::deposit_event(RawEvent::ClaimTransfered(sender, claim, receiver));
 			Ok(())
 		}
+	}
+}
+impl<T: Config> Module<T> {
+	pub fn do_create_claim(sender: T::AccountId, claim: Vec<u8>) -> Result<(), dispatch::DispatchError> {
+		// 检测存证是否已经存在
+		ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExists);
+		// 检测存证的长度是否超过限制
+		ensure!( T::MaxClaimLength::get() >= claim.len() as u32, Error::<T>::ProofTooLong);
+		// 存入存证数据
+		Proofs::<T>::insert(&claim,(sender.clone(), system::Module::<T>::block_number()));
+		// 触发存证写入成功的时间
+		Self::deposit_event(RawEvent::ClaimCreated(sender, claim));
+		
+		Ok(())
 	}
 }
