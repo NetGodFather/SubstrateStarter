@@ -6,7 +6,7 @@ use node_template_runtime::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, Properties};
 use node_template_runtime::ContractsConfig;
 
 // The URL for the telemetry server.
@@ -41,6 +41,9 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+	let mut properties: Properties = Properties::new();
+	properties.insert("tokenDecimals".to_string(), 12.into());
+	properties.insert("tokenSymbol".to_string(), "GNS".into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -72,62 +75,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
-		None,
-		// Extensions
-		None,
-	))
-}
-
-pub fn tenglong_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
-	
-	Ok(ChainSpec::from_genesis(
-		// Name 链的名称，
-		"TengLong Testnet",
-		// ID 链的ID
-		"tenglong_testnet",
-		// 链的类型，支持：Development 开发；Local 本地；Live 公开(包括测试网和主网)；custom 自定义
-		ChainType::Local,
-		// 构造函数
-		move || testnet_genesis(
-			// WASM 文件
-			wasm_binary,
-			// Initial PoA authorities
-			// 初始化 POA 的生产节点账号
-			vec![
-				authority_keys_from_seed("Alice"),
-				authority_keys_from_seed("Bob"),
-			],
-			// Sudo 账号
-			// Sudo account
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			// 预先配置的账号，
-			// Pre-funded accounts
-			vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-			],
-			true,
-		),
-		//
-		// Bootnodes
-		vec![],
-		// Telemetry
-		None,
-		// Protocol ID
-		None,
-		// Properties
-		None,
+		Some(properties),
 		// Extensions
 		None,
 	))
